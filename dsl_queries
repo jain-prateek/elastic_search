@@ -1,1 +1,86 @@
+from elasticsearch import Elasticsearch
+import json
 
+# Connect to the elastic cluster
+es=Elasticsearch([{'host':'localhost','port':9200}])
+print(es)
+
+# delete a case json
+# res=es.delete(index='testintake',doc_type='test_case_data',id=1)
+# print(res)
+
+# #Now let's store this document in Elasticsearch
+# res = es.index(index='testintake',doc_type='test_case_data',id=2,body=e1)
+#
+# res=es.get(index='testintake',doc_type='test_case_data',id=1)
+# res2=es.get(index='testintake',doc_type='test_case_data',id=2)
+# res3=es.get(index='testintake',doc_type='test_case_data',id=3)
+# # print("****",res)
+# print(json.dumps(res, indent=2, sort_keys=True))
+# print(json.dumps(res2, indent=2, sort_keys=True))
+# print(json.dumps(res3, indent=2, sort_keys=True))
+
+# to fetch all cases
+# res = es.search(index="testintake", body = {
+# 'size' : 10000,
+# 'query': {
+#     'match_all' : {}
+# }
+# })
+
+# initial query to fullfill criteria
+
+# res = es.search(index="testintake", body = {
+#     "query": {
+#         "bool": {
+#             "should": [
+#                 {"constant_score": {"filter": {"match": { "TESTS.TEST_HLT.value": {"query":"Diarrhoea (excl infective","operator" : "and"}}},"_name" : "field1"}},
+#                 {"constant_score": {"filter": {"match": { "TESTS.TEST_COUNTRY.value": {"query": "US","operator" : "and"} }},"_name" : "field2"}}
+#             ],
+#             "filter":[
+#                 {"range": {"TEST_DETAILS.PT_AGE.value": {"gte": 20}}}
+#             ]
+#         }
+#     }
+# })
+
+
+#  final query
+res = es.search(index="testintake", body = {
+    "_source": {
+        "includes": [ "CASE_NUMBER", "CASE_VERSION_ID"]
+        },
+    "query": {
+        "bool": {
+            "should": [
+                {"constant_score": {"filter": {"match": { "EVENTS.EVENT_HLT.value": {"query":"Diarrhoea (excl infective","operator" : "or"}}},"boost" : 0}},
+                {"constant_score": {"filter": {"match": { "CONTACTS.CONTACT_COUNTRY.value": {"query": "US","operator" : "and"} }},"boost" : 0.8}},
+
+                {"constant_score": {"filter": {"match": { "CONTACTS.CONTACT_FIRST_NAME.value": {"query": "Shady","operator" : "and"} }},"boost" : 0}},
+                {"constant_score": {"filter": {"match": { "CONTACTS.CONTACT_LAST_NAME.value": {"query": "Nade","operator" : "and"} }},"boost" : 0}},
+                {"constant_score": {"filter": {"match": { "PRODUCTS.PRODUCT_NAME_AS_REPORTED.value": {"query": "Letrezole","operator" : "or"} }},"boost" : 0}},
+                {"constant_score": {"filter": {"match": { "PATIENT_DETAILS.PT_SEX.value": {"query": "Female","operator" : "and"} }},"boost" : 0.5}},
+                {"constant_score": {"filter": {"match": { "PATIENT_DETAILS.PT_INITIALS.value": {"query": "PB","operator" : "and"} }},"boost" : 0}}
+            ],
+            "filter": [
+                {"range": {"PATIENT_DETAILS.PT_AGE.value":
+                               {"gte": 20}}},
+            # {"range": {"PATIENT_DETAILS.DOSES.DOSE_ID.value": {"gte": 35}}},
+            # {"range": {"PATIENT_DETAILS.PT_AGE.value": {"gte": 20}}}
+            ]
+        }
+    }
+})
+
+
+# print(res)
+for doc in res['hits']['hits']:
+    if not doc['_score'] == 0:
+        import json
+        # print(doc['_id'])
+        # print(json.dumps(doc['_source'], indent=2, sort_keys=True))
+        print(doc['_id'], doc['_source'])
+        # print(doc)
+        # print(doc['_id'])
+        print("No. of matching fields in above json with id ",doc['_id'] ,"are :",doc['_score'])
+        print()
